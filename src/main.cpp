@@ -108,12 +108,17 @@ public:
                 }
                 j += 1;
             }
-            _new_cluster_count = sum([1 for v in self.cluster_document_count if v > 0])
-            if (total_transfers == 0 and _new_cluster_count == _n_clusters and _iter > self.n_iterations - 5) {
+            double new_cluster_count = 0.0;
+            for (auto doc_count = cluster_document_count.begin(); doc_count != cluster_document_count.end(); doc_count++){
+                if (*doc_count > 0){
+                    new_cluster_count += 1;
+                }
+            }
+            if (total_transfers == 0 && new_cluster_count == number_of_clusters && iter > n_iterations_ - 5) {
                 break;
             }
-            _n_clusters = _new_cluster_count
-            self.n_clusters = _n_clusters
+            number_of_clusters = (int) new_cluster_count;
+            n_clusters_ = number_of_clusters;
         }
         return document_cluster;
     }
@@ -230,9 +235,9 @@ private:
     }
 };
 
-PYBIND11_MODULE(gsdmm, m){
+PYBIND11_MODULE(fast_gsdmm, m){
     py::class_<GSDMM>(m, "GibbsSamplingDirichletMultinomialModeling")
-    //.def(py::init<>())
+    .def(py::init<std::vector<std::string>, int, int, int, double, double>())
     //.def("document_scoring", &GSDMM::document_scoring)
     //.def("sampling", &GSDMM::sampling)
     .def("fit", &GSDMM::fit)
