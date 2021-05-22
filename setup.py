@@ -30,7 +30,7 @@ ext_modules = [
 setup(
     name=PKG_NAME,
     version=__version__,
-    author="Gianni Balistreri",
+    author="Gianni Francesco Balistreri",
     author_email="gbalistreri@gmx.de",
     description="Gibbs Sampling Dirichlet Multinomial Modeling for short-text clustering",
     long_description="",
