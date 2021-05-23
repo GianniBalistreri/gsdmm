@@ -168,6 +168,44 @@ public:
     # Get top-n words each cluster: #
     #################################
     */
+    std::map<std::string, std::vector<std::pair<std::string, int>>> get_top_words_each_cluster(int top_n_words) {
+        std::map<std::string, std::vector<std::pair<std::string, int>>> top_words_each_cluster;
+        for (int cluster_label = 0; cluster_label < cluster_word_distribution.size(); cluster_label++) {
+            for (std::map<std::string, int> element: cluster_word_distribution[cluster_label]) {
+                std::vector <std::pair<std::string, int>> vec;
+                std::copy(element.begin(), element.end(), std::back_inserter < std::vector < std::pair < std::string, int>>>(vec));
+                std::sort(vec.begin(), vec.end(),
+                          [](const std::pair<std::string, int> &l, const std::pair<std::string, int> &r) {
+                              if (l.second != r.second) {
+                                  return l.second < r.second;
+                              }
+                              return l.first < r.first;
+                          });
+                std::map<std::string, int> subset;
+                int i = 0;
+                for (auto element: vec) {
+                    if (i >= top_n_words && i <= vec.size()) {
+                        subset.insert(std::pair<std::string, int>(element.first, element.second));
+                    }
+                    i += 1;
+                }
+                std::vector <std::pair<std::string, int>> subset_vec;
+                std::copy(subset.begin(),
+                          subset.end(),
+                          std::back_inserter < std::vector < std::pair < std::string, int>>>(subset_vec));
+                std::sort(subset_vec.begin(), subset_vec.end(),
+                          [](const std::pair<std::string, int> &l, const std::pair<std::string, int> &r) {
+                              if (l.second != r.second) {
+                                  return l.second < r.second;
+                              }
+                              return l.first < r.first;
+                          });
+                std::reverse(subset_vec.begin(), subset_vec.end());
+                top_words_each_cluster.insert(std::vector<std::pair<std::string, int>>(std::string(cluster_label), subset_vec));
+            }
+        }
+        return top_words_each_cluster;
+    }
 
     /*
     #########################################
