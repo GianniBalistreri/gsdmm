@@ -173,7 +173,7 @@ public:
         for (int cluster_label = 0; cluster_label < cluster_word_distribution.size(); cluster_label++) {
             for (std::map<std::string, int> element: cluster_word_distribution[cluster_label]) {
                 std::vector <std::pair<std::string, int>> vec;
-                std::copy(element.begin(), element.end(), std::back_inserter < std::vector < std::pair < std::string, int>>>(vec));
+                std::copy(element.begin(), element.end(), std::back_inserter<std::vector<std::pair<std::string, int>>>(vec));
                 std::sort(vec.begin(), vec.end(),
                           [](const std::pair<std::string, int> &l, const std::pair<std::string, int> &r) {
                               if (l.second != r.second) {
@@ -189,7 +189,7 @@ public:
                     }
                     i += 1;
                 }
-                std::vector <std::pair<std::string, int>> subset_vec;
+                std::vector<std::pair<std::string, int>> subset_vec;
                 std::copy(subset.begin(),
                           subset.end(),
                           std::back_inserter < std::vector < std::pair < std::string, int>>>(subset_vec));
@@ -206,15 +206,25 @@ public:
         }
         return top_words_each_cluster;
     }
-
     /*
     #########################################
     # Get word importance for each cluster: #
     #########################################
     */
-    //std::vector<std::map<char, double>> word_importance_each_cluster(){
-
-    //}
+    std::vector<std::map<std::string , double>> word_importance_each_cluster(){
+        std::vector<std::map<std::string , double>> phi;
+        for (int c = 0; c < n_clusters_; c++){
+            for (std::map<std::string, int> element: cluster_word_distribution[c]) {
+                double sum_of_words = 0.0;
+                for (std::map<std::string, int> element: cluster_word_distribution[c]){
+                    sum_of_words += element.second;
+                }
+                double importance = (element.second + beta_) / (sum_of_words + vocab_size_ + beta_);
+                phi.insert(std::map<std::string , double>(element.first, importance));
+            }
+        }
+        return phi;
+    }
 private:
     /*
     ####################
@@ -280,8 +290,8 @@ PYBIND11_MODULE(fast_gsdmm, m){
     //.def("sampling", &GSDMM::sampling)
     .def("fit", &GSDMM::fit)
     .def("generate_topic_allocation", &GSDMM::generate_topic_allocation)
-    //.def("get_top_words_each_cluster", &GSDMM::get_top_words_each_cluster)
+    .def("get_top_words_each_cluster", &GSDMM::get_top_words_each_cluster)
     .def("predict", &GSDMM::predict)
-    .def("predict_proba", &GSDMM::predict_proba);
-    //.def("word_importance_each_cluster", &GSDMM::word_importance_each_cluster);
+    .def("predict_proba", &GSDMM::predict_proba)
+    .def("word_importance_each_cluster", &GSDMM::word_importance_each_cluster);
 }
