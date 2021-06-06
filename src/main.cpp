@@ -5,6 +5,7 @@
 #include <iostream>
 #include <map>
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 #include <pybind11/numpy.h>
 #include <string>
 
@@ -44,6 +45,7 @@ public:
     */
     std::vector<int> fit(std::vector<std::vector<std::string>> documents){
         // initialize cluster document counting
+        std::cout << "Start fitting ... ";
         std::vector<double> probability_vector(n_clusters_, 1.0 / n_clusters_);
         std::vector<int> cluster_word_count(n_clusters_, 0);
         std::vector<int> cluster_document_count(n_clusters_, 0);
@@ -60,39 +62,45 @@ public:
         // initialize the clusters
         int number_of_clusters = n_clusters_;
         int i = 0;
+        std::cout << "... Initialize Clusters ... ";
         for (auto doc = documents.begin(); doc != documents.end(); doc++){
             // choose a random initial cluster for the document
             std::vector<double> probability_vector(n_clusters_, 1.0 / n_clusters_);
-            int idx = sampling();
+            int idx = sampling(probability_vector);
             document_cluster[i] = idx;
             cluster_document_count[idx] += 1;
             cluster_word_count[idx] += doc->size();
-            for (std::pair<std::string, int> element : cluster_word_distribution[idx]){
-                //if (std::find(cluster_word_distribution[idx].begin(), cluster_word_distribution[idx].end(), word) != cluster_word_distribution[idx].end()){
-                //    cluster_word_distribution[idx][word] = 0;
-                //}
-                cluster_word_distribution[idx][element.first] += 1;
+            for (std::string element : *doc){
+                cluster_word_distribution[idx][element] += 1;
             }
             i += 1;
         }
+        std::cout << "... Start Iteration ... ";
         for (int iter = 0; iter < n_iterations_; iter++){
             int j = 0;
             int total_transfers = 0;
+            std::cout << " Iteration: " << iter;
             for (auto doc = documents.begin(); doc != documents.end(); doc++){
                 // remove the doc from it's current cluster
                 int old_cluster = document_cluster[j];
                 cluster_document_count[old_cluster] -= 1;
                 cluster_word_count[old_cluster] -= doc->size();
-                for (std::pair<std::string, int> element : cluster_word_distribution[old_cluster]){
-                    cluster_word_distribution[old_cluster][element.first] -= 1;
-                    // compact dictionary to save space
-                    //if (cluster_word_distribution[_old_cluster][word] == 0){
-                        // del self.cluster_word_distribution[_old_cluster][word]
-                    //}
+                for (std::string element : *doc){
+                    cluster_word_distribution[old_cluster][element] -= 1;
                 }
                 // draw sample from distribution to find new cluster
-                probability_vector = document_scoring(documents[j]);
-                int new_cluster = sampling();
+                probability_vector = document_scoring(documents[j],
+                                                      alpha_,
+                                                      beta_,
+                                                      n_clusters_,
+                                                      n_iterations_,
+                                                      vocab_size_,
+                                                      n_documents,
+                                                      cluster_word_count,
+                                                      cluster_document_count,
+                                                      cluster_word_distribution
+                                                      );
+                int new_cluster = sampling(probability_vector);
                 // transfer doc to the new cluster
                 if (new_cluster != old_cluster){
                     total_transfers += 1;
@@ -100,14 +108,13 @@ public:
                 document_cluster[j] = new_cluster;
                 cluster_document_count[new_cluster] += 1;
                 cluster_word_count[new_cluster] += doc->size();
-                for (std::pair<std::string, int> element : cluster_word_distribution[new_cluster]){
-                    //if (std::find(cluster_word_distribution[new_cluster].begin(), cluster_word_distribution[new_cluster].end(), word) != cluster_word_distribution[new_cluster].end()){
-                    //    cluster_word_distribution[new_cluster][element.first] = 0;
-                    //}
-                    cluster_word_distribution[new_cluster][element.first] += 1;
+                for (std::string element : *doc){
+                    cluster_word_distribution[new_cluster][element] += 1;
                 }
                 j += 1;
+                std::cout << " J: " << j;
             }
+            std::cout << "... Eval Clusters ... ";
             double new_cluster_count = 0.0;
             for (auto doc_count = cluster_document_count.begin(); doc_count != cluster_document_count.end(); doc_count++){
                 if (*doc_count > 0){
@@ -118,8 +125,8 @@ public:
                 break;
             }
             number_of_clusters = (int) new_cluster_count;
-            n_clusters_ = number_of_clusters;
         }
+        n_clusters_ = number_of_clusters;
         return document_cluster;
     }
     /*
@@ -127,6 +134,7 @@ public:
     # Predict cluster label: #
     ##########################
     */
+    /*
     int predict(std::vector<std::string> document){
         std::vector<double> probabilities = document_scoring(document);
         double highest_probability = 0.0;
@@ -141,20 +149,22 @@ public:
         }
         return cluster_label;
     }
+     */
     /*
     ##########################################
     # Predict probabilities of each cluster: #
     ##########################################
     */
-    std::vector<double> predict_proba(std::vector<std::string> documents){
-        std::vector<double> probabilities = document_scoring(documents);
-        return probabilities;
-    }
+    //std::vector<double> predict_proba(std::vector<std::string> documents){
+    //    std::vector<double> probabilities = document_scoring(documents);
+    //    return probabilities;
+    //}
     /*
     ####################################
     # Allocate cluster labels to text: #
     ####################################
     */
+    /*
     std::vector<int> generate_topic_allocation(std::vector<std::vector<std::string>> documents){
         std::vector<int> topic_allocation;
         for (auto doc = documents.begin(); doc != documents.end(); doc++){
@@ -163,17 +173,20 @@ public:
         }
         return topic_allocation;
     }
+     */
     /*
     #################################
     # Get top-n words each cluster: #
     #################################
     */
+    /*
     std::map<std::string, std::vector<std::pair<std::string, int>>> get_top_words_each_cluster(int top_n_words) {
         std::map<std::string, std::vector<std::pair<std::string, int>>> top_words_each_cluster;
         for (int cluster_label = 0; cluster_label < cluster_word_distribution.size(); cluster_label++) {
-            for (std::map<std::string, int> element: cluster_word_distribution[cluster_label]) {
+            for (std::pair<std::string, int> element: cluster_word_distribution[cluster_label]) {
+            //for (auto element: cluster_word_distribution[cluster_label]) {
                 std::vector <std::pair<std::string, int>> vec;
-                std::copy(element.begin(), element.end(), std::back_inserter<std::vector<std::pair<std::string, int>>>(vec));
+                std::copy(vec.begin(), vec.end(), std::back_inserter<std::vector<std::pair<std::string, int>>>(vec));
                 std::sort(vec.begin(), vec.end(),
                           [](const std::pair<std::string, int> &l, const std::pair<std::string, int> &r) {
                               if (l.second != r.second) {
@@ -201,38 +214,51 @@ public:
                               return l.first < r.first;
                           });
                 std::reverse(subset_vec.begin(), subset_vec.end());
-                top_words_each_cluster.insert(std::vector<std::pair<std::string, int>>(std::string(cluster_label), subset_vec));
+                top_words_each_cluster.insert(std::vector<std::pair<std::string, int>>(cluster_label, subset_vec));
             }
         }
         return top_words_each_cluster;
     }
+     */
     /*
     #########################################
     # Get word importance for each cluster: #
     #########################################
     */
-    std::vector<std::map<std::string , double>> word_importance_each_cluster(){
-        std::vector<std::map<std::string , double>> phi;
+    /*
+    std::vector<std::pair<std::string , double>> word_importance_each_cluster(){
+        std::vector<std::pair<std::string , double>> phi;
         for (int c = 0; c < n_clusters_; c++){
-            for (std::map<std::string, int> element: cluster_word_distribution[c]) {
+            for (std::pair<std::string, int> element: cluster_word_distribution[c]) {
                 double sum_of_words = 0.0;
-                for (std::map<std::string, int> element: cluster_word_distribution[c]){
+                for (std::pair<std::string, int> element: cluster_word_distribution[c]){
                     sum_of_words += element.second;
                 }
                 double importance = (element.second + beta_) / (sum_of_words + vocab_size_ + beta_);
-                phi.insert(std::map<std::string , double>(element.first, importance));
+                phi.insert(std::pair<std::string , double>(element.first, importance));
             }
         }
         return phi;
     }
+     */
 private:
     /*
     ####################
     # Score documents: #
     ####################
     */
-    std::vector<double> document_scoring(std::vector<std::string> documents){
-        std::vector<int> p(n_clusters_, 0);
+    std::vector<double> document_scoring(std::vector<std::string> documents,
+                                         double alpha_,
+                                         double beta_,
+                                         int n_clusters_,
+                                         int n_iterations_,
+                                         int vocab_size_,
+                                         int n_documents,
+                                         std::vector<int> cluster_word_count,
+                                         std::vector<int> cluster_document_count,
+                                         std::vector<std::map<std::string, int>> cluster_word_distribution
+                                         ){
+        std::vector<double> p(n_clusters_, 0.0);
         double ld1 = log(n_documents - 1 + n_clusters_ * alpha_);
         for (int i = 0; i < n_clusters_; i++) {
             double ln1 = log(cluster_word_count[i] + alpha_);
@@ -254,7 +280,7 @@ private:
         if (normalized_probability_vector <= 0){
             normalized_probability_vector = 1;
         }
-        std::vector<double> probability(p.size());
+        std::vector<double> probability;
         for (auto prob = p.begin(); prob != p.end(); prob++){
             double prob_each_cluster = *prob / normalized_probability_vector;
             probability.push_back(prob_each_cluster);
@@ -267,10 +293,10 @@ private:
     #########################
     */
     // Sample index value representing cluster number from a multinomial distribution:
-    int sampling(){
+    int sampling(std::vector<double> probability_vector){
         py::array_t<float> probability_vector_py_obj = py::array_t<float>(py::cast(probability_vector));
         py::module np = py::module::import("numpy");
-        std::vector<int> sample_vector = np.attr("random").attr("multinomial")(1, probability_vector_py_obj).cast<std::vector<int>>();
+        auto sample_vector = np.attr("random").attr("multinomial")(1, probability_vector_py_obj).cast<std::vector<int>>();
         int idx = 0;
         for (auto i = sample_vector.begin(); i != sample_vector.end(); i++){
             if (*i == 1){
@@ -288,10 +314,10 @@ PYBIND11_MODULE(fast_gsdmm, m){
     .def(py::init<std::vector<std::string>, int, int, int, double, double>())
     //.def("document_scoring", &GSDMM::document_scoring)
     //.def("sampling", &GSDMM::sampling)
-    .def("fit", &GSDMM::fit)
-    .def("generate_topic_allocation", &GSDMM::generate_topic_allocation)
-    .def("get_top_words_each_cluster", &GSDMM::get_top_words_each_cluster)
-    .def("predict", &GSDMM::predict)
-    .def("predict_proba", &GSDMM::predict_proba)
-    .def("word_importance_each_cluster", &GSDMM::word_importance_each_cluster);
+    .def("fit", &GSDMM::fit);
+    //.def("generate_topic_allocation", &GSDMM::generate_topic_allocation)
+    //.def("get_top_words_each_cluster", &GSDMM::get_top_words_each_cluster)
+    //.def("predict", &GSDMM::predict)
+    //.def("predict_proba", &GSDMM::predict_proba)
+    //.def("word_importance_each_cluster", &GSDMM::word_importance_each_cluster);
 }
