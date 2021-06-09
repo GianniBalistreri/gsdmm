@@ -13,15 +13,10 @@ PKG_NAME: str = 'fast_gsdmm'
 # * You can add cxx_std=11/14/17, and then build_ext can be removed.
 # * You can set include_pybind11=false to add the include directory yourself,
 #   say from a submodule.
-#
-# Note:
-#   Sort input source files if you glob sources to ensure bit-for-bit
-#   reproducible builds (https://github.com/pybind/python_example/pull/53)
 
 ext_modules = [
     Pybind11Extension(PKG_NAME,
                       ["src/main.cpp"],
-                      # Example: passing in the version to the compiled code
                       define_macros=[('VERSION_INFO', __version__)],
                       cxx_std=17
                       ),
@@ -32,7 +27,7 @@ setup(
     version=__version__,
     author="Gianni Francesco Balistreri",
     author_email="gbalistreri@gmx.de",
-    description="Gibbs Sampling Dirichlet Multinomial Modeling for short-text clustering",
+    description="Gibbs Sampling Dirichlet Multinomial Modeling algorithm for short-text clustering",
     long_description="",
     ext_modules=ext_modules,
     #extras_require={"test": "pytest"},
