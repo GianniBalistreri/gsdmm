@@ -43,7 +43,7 @@ public:
     # Fit model: #
     ##############
     */
-    std::vector<int> fit(std::vector<std::vector<std::string>> documents){
+    std::tuple<std::vector<int>, std::vector<int>, std::vector<int>, std::vector<std::map<std::string, int>>> fit(std::vector<std::vector<std::string>> documents){
         std::vector<double> probability_vector(n_clusters_, 1.0 / n_clusters_);
         std::vector<int> cluster_word_count(n_clusters_, 0);
         std::vector<int> cluster_document_count(n_clusters_, 0);
@@ -58,7 +58,7 @@ public:
         int number_of_clusters = n_clusters_;
         int i = 0;
         for (auto doc = documents.begin(); doc != documents.end(); doc++){
-            // choose a random initial cluster for the document
+            // Choose a random initial cluster for the document
             std::vector<double> probability_vector(n_clusters_, 1.0 / n_clusters_);
             int idx = sampling(probability_vector);
             document_cluster[i] = idx;
@@ -69,6 +69,7 @@ public:
             }
             i += 1;
         }
+        // Re-allocate documents to cluster iteratively:
         std::vector<double> probability_vector_;
         for (int iter = 0; iter < n_iterations_; iter++){
             int j = 0;
@@ -81,6 +82,7 @@ public:
                 for (std::string element : *doc){
                     cluster_word_distribution[old_cluster][element] -= 1;
                 }
+                // Score document:
                 std::vector<double> p(n_clusters_, 0.0);
                 double ld1 = log(n_documents - 1 + n_clusters_ * alpha_);
                 int document_size = doc->size();
@@ -124,7 +126,7 @@ public:
                         cluster_word_distribution[new_cluster][element] += 1;
                     }
                 } catch (...) {
-                    // Documents stays in current cluster:
+                    // Document stays in current cluster:
                     cluster_document_count[old_cluster] += 1;
                     cluster_word_count[old_cluster] += doc->size();
                     for (std::string element : *doc){
@@ -145,7 +147,7 @@ public:
             number_of_clusters = (int) new_cluster_count;
         }
         n_clusters_ = number_of_clusters;
-        return document_cluster;
+        return std::make_tuple(document_cluster, cluster_word_count, cluster_document_count, cluster_word_distribution);
     }
     /*
     ##########################
@@ -260,7 +262,6 @@ public:
                                          double alpha,
                                          double beta,
                                          int n_clusters,
-                                         int n_iterations,
                                          int vocab_size,
                                          int n_documents,
                                          std::vector<int> cluster_word_count_,
@@ -282,9 +283,8 @@ public:
             }
             p[i] = exp(ln1 - ld1 + ln2 - ld2);
         }
-        // normalize the probability vector:
+        // Normalize probabilities:
         double probability_sum = 0;
-        //for (auto norm_prob = p.begin(); norm_prob != p.end(); norm_prob++){
         for (double norm_prob: p){
             probability_sum += norm_prob;
         }
