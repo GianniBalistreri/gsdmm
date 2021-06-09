@@ -5,7 +5,7 @@ from setuptools import setup
 # Available at setup time due to pyproject.toml
 from pybind11.setup_helpers import Pybind11Extension, build_ext
 
-__version__ = "0.1"
+__version__ = "0.0.1"
 
 PKG_NAME: str = 'fast_gsdmm'
 
