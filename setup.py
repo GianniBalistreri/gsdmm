@@ -22,19 +22,33 @@ ext_modules = [
                       ),
 ]
 
+with open('README.md', 'r') as _read_me:
+    long_description = _read_me.read()
+
 setup(
     name=PKG_NAME,
     version=__version__,
     author="Gianni Francesco Balistreri",
     author_email="gbalistreri@gmx.de",
     description="Gibbs Sampling Dirichlet Multinomial Modeling algorithm for short-text clustering",
-    long_description="",
+    long_description=long_description,
+    long_description_content_type='text/markdown',
+    license='GNU',
+    url='https://github.com/GianniBalistreri/gsdmm',
     ext_modules=ext_modules,
     #extras_require={"test": "pytest"},
     # Currently, build_ext only provides an optional "highest supported C++
     # level" feature, but in the future it may provide more features.
     #cmdclass={"build_ext": build_ext},
     zip_safe=False,
+    classifiers=[
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Operating System :: OS Independent',
+    ],
+    python_requires='>=3.6',
 )
 
 subprocess.run(['python{} -m pip install {}'.format('3' if sys.platform.find('win') != 0 else '',
